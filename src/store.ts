@@ -1,6 +1,6 @@
 import { create } from "zustand";
-
-export const cells = 9;
+import Cell from "./Cell";
+import { cells } from "./constants";
 
 const defaultBoard = [
   ...new Array(cells * 2 - 1).fill(false).map((_, i) =>
@@ -13,7 +13,7 @@ const defaultBoard = [
         }
       } else {
         if (j % 2 === 0) {
-          return null;
+          return new Cell(i, j);
         } else {
           return true;
         }
@@ -22,7 +22,13 @@ const defaultBoard = [
   ),
 ];
 
-console.log(defaultBoard);
+for (let i = 0; i < cells; i++) {
+  for (let j = 0; j < cells; j++) {
+    (defaultBoard[i * 2][j * 2] as Cell).addNeighbors(defaultBoard);
+  }
+}
+
+// console.log(defaultBoard);
 
 export interface CoOrd {
   row: number;
@@ -34,7 +40,7 @@ export interface Wall extends CoOrd {
 }
 
 export interface PossibleWall extends Wall {
-    valid: boolean;
+  valid: boolean;
 }
 
 interface PlayerState extends CoOrd {
@@ -48,7 +54,7 @@ interface GameState {
     1: PlayerState;
     2: PlayerState;
   };
-  board: (boolean | null)[][];
+  board: (boolean | Cell)[][];
   changeTurn: () => void;
   placeWall: (player: 1 | 2, pos: Wall) => void;
   movePlayer: (player: 1 | 2, pos: CoOrd) => void;

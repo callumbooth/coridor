@@ -11,7 +11,10 @@ import {
   Torus,
 } from "@react-three/drei";
 
-import { CoOrd, Wall as IWall, PossibleWall, cells, useStore } from "./store";
+import { CoOrd, Wall as IWall, PossibleWall, useStore } from "./store";
+import { start } from "./pathfind";
+import Cell from "./Cell";
+import { cells } from "./constants";
 
 const wallWidth = 0.1;
 const cellWidth = 1;
@@ -612,6 +615,8 @@ const UI = () => {
   const turn = useStore((state) => state.turn);
   const player = useStore((state) => state.players[turn]);
   const selectMode = useStore((state) => state.selectMode);
+  const board = useStore((state) => state.board);
+
   return (
     <div className="absolute z-10 bottom-8 left-1/2 -translate-x-1/2 p-4 bg-white">
       <div className="flex gap-4">
@@ -639,6 +644,13 @@ const UI = () => {
         <div className="flex-1 flex flex-col">
           <div>Walls left</div>
           <div>{10 - player.wallsPlaced.length}</div>
+        </div>
+        <div className="flex-1 flex flex-col">
+          <button
+            onClick={() => start(board[0][0] as Cell, board[4][4] as Cell)}
+          >
+            start search
+          </button>
         </div>
       </div>
     </div>
