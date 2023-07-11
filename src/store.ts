@@ -7,7 +7,7 @@ const defaultBoard = [
     new Array(cells * 2 - 1).fill(false).map((_, j) => {
       if (i % 2) {
         if (j % 2 === 1) {
-          return null;
+          return true;
         } else {
           return true;
         }
@@ -33,6 +33,10 @@ export interface Wall extends CoOrd {
   dir: "hoz" | "vert";
 }
 
+export interface PossibleWall extends Wall {
+    valid: boolean;
+}
+
 interface PlayerState extends CoOrd {
   wallsPlaced: Wall[];
   mode: "move" | "wall";
@@ -48,6 +52,7 @@ interface GameState {
   changeTurn: () => void;
   placeWall: (player: 1 | 2, pos: Wall) => void;
   movePlayer: (player: 1 | 2, pos: CoOrd) => void;
+  selectMode: (player: 1 | 2) => void;
 }
 
 const store = create<GameState>((set, get) => ({
@@ -110,6 +115,19 @@ const store = create<GameState>((set, get) => ({
       },
     });
     initialState.changeTurn();
+  },
+  selectMode: (player) => {
+    const initialState = get();
+
+    set({
+      players: {
+        ...initialState.players,
+        [player]: {
+          ...initialState.players[player],
+          mode: initialState.players[player].mode === "move" ? "wall" : "move",
+        },
+      },
+    });
   },
 }));
 

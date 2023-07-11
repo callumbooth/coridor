@@ -1,16 +1,17 @@
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import {
   Box,
   Environment,
   GizmoHelper,
   GizmoViewport,
-  Grid,
   OrbitControls,
   Plane,
+  Stats,
+  Torus,
 } from "@react-three/drei";
 
-import { CoOrd, Wall as IWall, cells, useStore } from "./store";
+import { CoOrd, Wall as IWall, PossibleWall, cells, useStore } from "./store";
 
 const wallWidth = 0.1;
 const cellWidth = 1;
@@ -58,9 +59,6 @@ const getWallPos = (cell: IWall) => {
   let zWallCount;
   const normalise =
     cellWidth / 2 + wallWidth / 2 + (cell.dir === "vert" ? -wallWidth : 0);
-  // const normalise = 0;
-
-  // console.log(cell);
 
   if (cell.col % 2 === 1) {
     //odd rows
@@ -80,10 +78,6 @@ const getWallPos = (cell: IWall) => {
     zWallCount = zCellCount;
   }
 
-  // const normalise = cellWidth / 2 + wallWidth / 2;
-
-  console.log(xCellCount, xWallCount, zCellCount, zWallCount);
-
   const x = xCellCount * cellWidth + xWallCount * wallWidth + normalise;
 
   const z = zCellCount * cellWidth + zWallCount * wallWidth + normalise;
@@ -100,8 +94,6 @@ const getWallPos = (cell: IWall) => {
 const Wall = (props: IWall & { player: 1 | 2 }) => {
   const isHoz = props.dir === "hoz";
   const pos = getWallPos(props);
-
-  console.log(pos);
 
   return (
     <Box
@@ -312,8 +304,15 @@ const PlaceWalls = () => {
   );
 };
 
-const PotentialWall = ({ cell }: { cell: IWall }) => {
-  const [hovered, setHovered] = useState(false);
+const PotentialWall = ({
+  cell,
+  isHovered,
+  setHoveredCell,
+}: {
+  cell: PossibleWall;
+  isHovered: boolean;
+  setHoveredCell: React.Dispatch<React.SetStateAction<PossibleWall | null>>;
+}) => {
   const placeWall = useStore((state) => state.placeWall);
   const currPlayer = useStore((state) => state.turn);
   const pos = getWallPos(cell);
@@ -323,26 +322,29 @@ const PotentialWall = ({ cell }: { cell: IWall }) => {
     <Box
       position={[
         pos.x + (isHoz ? -cellWidth / 2 - wallWidth / 2 : 0),
-        0,
+        -0.5,
         -pos.z + (!isHoz ? cellWidth / 2 + wallWidth / 2 : 0),
       ]}
       args={[1, 0.1, 0.1]}
       rotation={[0, !isHoz ? -Math.PI / 2 : 0, 0]}
       onClick={(e) => {
+        if (!cell.valid) {
+          return;
+        }
         e.stopPropagation();
         placeWall(currPlayer, cell);
       }}
       onPointerEnter={(e) => {
         e.stopPropagation();
-        setHovered(true);
+        setHoveredCell(cell);
       }}
       onPointerLeave={(e) => {
         e.stopPropagation();
-        setHovered(false);
+        setHoveredCell(null);
       }}
     >
       <meshStandardMaterial
-        color={hovered ? "green" : "gray"}
+        color={isHovered ? "green" : cell.valid ? "gray" : "black"}
         opacity={0.7}
         transparent
       />
@@ -350,34 +352,110 @@ const PotentialWall = ({ cell }: { cell: IWall }) => {
   );
 };
 
+const PotentialWalls = ({ available }: { available: PossibleWall[] }) => {
+  const [hoveredCell, setHoveredCell] = useState<PossibleWall | null>(null);
+
+  return (
+    <>
+      {available.map((cell, i) => {
+        const isHovered =
+          !!hoveredCell &&
+          cell.col === hoveredCell.col &&
+          cell.row === hoveredCell.row;
+        const isHoveredVert =
+          !!hoveredCell &&
+          cell.dir === "vert" &&
+          cell.col === hoveredCell.col &&
+          cell.row === hoveredCell.row + 2;
+
+        const isHoveredHoz =
+          !!hoveredCell &&
+          cell.dir === "hoz" &&
+          cell.col === hoveredCell.col + 2 &&
+          cell.row === hoveredCell.row;
+        return (
+          <PotentialWall
+            key={i}
+            cell={cell}
+            isHovered={isHovered || isHoveredVert || isHoveredHoz}
+            setHoveredCell={setHoveredCell}
+          />
+        );
+      })}
+    </>
+  );
+};
+
 const SelectWallPlace = () => {
   //find all empty walls, then place a box.
   const board = useStore((state) => state.board);
+  const turn = useStore((state) => state.turn);
+  const player = useStore((state) => state.players[turn]);
 
-  const available = board.reduce((intialRow, currentRow, rowIndex) => {
-    const cells = currentRow.reduce((initialCol, currentCol, colIndex) => {
-      if (currentCol === true) {
+  const available = useMemo(() => {
+    return board.reduce((intialRow, currentRow, rowIndex) => {
+      const cells = currentRow.reduce((initialCol, currentCol, colIndex) => {
+        if (
+          currentCol === false ||
+          currentCol === null ||
+          (rowIndex % 2 === 1 && colIndex % 2 === 1)
+        ) {
+          return initialCol;
+        }
+
+        let isValid = true;
+        if (colIndex > max - 2 || rowIndex > max - 2) {
+          isValid = false;
+        } else {
+          if (rowIndex % 2 === 1 && colIndex % 2 === 0) {
+            if (
+              board[rowIndex][colIndex + 1] !== true ||
+              board[rowIndex][colIndex + 2] !== true
+            ) {
+              isValid = false;
+            }
+          }
+
+          if (rowIndex % 2 === 0 && colIndex % 2 === 1) {
+            if (
+              board[rowIndex + 1][colIndex] !== true ||
+              board[rowIndex + 2][colIndex] !== true
+            ) {
+              isValid = false;
+            }
+          }
+
+          return [
+            ...initialCol,
+            {
+              row: rowIndex,
+              col: colIndex,
+              dir: rowIndex % 2 === 1 ? ("hoz" as const) : ("vert" as const),
+              valid: isValid,
+            },
+          ];
+        }
         return [
           ...initialCol,
           {
             row: rowIndex,
             col: colIndex,
             dir: rowIndex % 2 === 1 ? ("hoz" as const) : ("vert" as const),
+            valid: isValid,
           },
         ];
-      }
-      return initialCol;
-    }, [] as IWall[]);
-    return [...intialRow, ...cells];
-  }, [] as IWall[]);
+      }, [] as PossibleWall[]);
+      return [...intialRow, ...cells];
+    }, [] as PossibleWall[]);
+  }, [board, player.wallsPlaced]);
 
-  // console.log(available);
+  if (player.mode !== "wall") {
+    return null;
+  }
 
   return (
     <>
-      {available.map((cell) => {
-        return <PotentialWall cell={cell} />;
-      })}
+      <PotentialWalls available={available} />
     </>
   );
 };
@@ -481,6 +559,13 @@ const Experience = () => {
 
       {/* Floor */}
       <group position={[0, -0.02, 0]}>
+        <Torus
+          position={[center + cellWidth / 2, -0.01, -center - cellWidth / 2]}
+          rotation={[-Math.PI / 2, 0, (45 * Math.PI) / 180]}
+          args={[6.98, 0.1, 3, 4]}
+        >
+          <meshBasicMaterial color={"black"} />
+        </Torus>
         <Plane
           args={[100, 100]}
           rotation={[-Math.PI / 2, 0, 0]}
@@ -490,14 +575,15 @@ const Experience = () => {
         </Plane>
       </group>
 
-      <Grid
-        position={[center, -0.01, -center]}
+      {/* <Grid
+        position={[center + cellWidth / 2, -0.01, -center - cellWidth / 2]}
         args={[fsize, fsize]}
         // infiniteGrid
         // cellSize={cellWidth}
         sectionSize={cellWidth}
-      />
+      /> */}
       <Environment preset="city" />
+      <Stats showPanel={0} />
       <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
         <GizmoViewport
           axisColors={["#9d4b4b", "#2f7f4f", "#3b5b9d"]}
@@ -517,7 +603,40 @@ export const MyCanvas = () => (
 );
 
 const UI = () => {
-  return <div>test</div>;
+  const turn = useStore((state) => state.turn);
+  const player = useStore((state) => state.players[turn]);
+  const selectMode = useStore((state) => state.selectMode);
+  return (
+    <div className="absolute z-10 bottom-8 left-1/2 -translate-x-1/2 p-4 bg-white">
+      <div className="flex gap-4">
+        <div className="flex-1 flex flex-col">
+          <div>Turn</div>
+          <div>Player: {turn}</div>
+        </div>
+        <div className="flex-1 flex flex-col">
+          <div>Mode</div>
+          <div className="flex gap-4">
+            <button
+              className={player.mode === "move" ? "bg-red-900" : ""}
+              onClick={() => selectMode(turn)}
+            >
+              Move
+            </button>
+            <button
+              className={player.mode === "wall" ? "bg-red-900" : ""}
+              onClick={() => selectMode(turn)}
+            >
+              Wall
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col">
+          <div>Walls left</div>
+          <div>{10 - player.wallsPlaced.length}</div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const App = () => (
