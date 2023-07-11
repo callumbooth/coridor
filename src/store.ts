@@ -22,6 +22,8 @@ const defaultBoard = [
   ),
 ];
 
+console.log(defaultBoard);
+
 export interface CoOrd {
   row: number;
   col: number;
@@ -78,8 +80,6 @@ const store = create<GameState>((set, get) => ({
       initialState.board[wall.row + 2][wall.col] = false;
     }
 
-    console.log(initialState);
-
     set({
       //   board: [...initialState.board],
       players: {
@@ -90,6 +90,7 @@ const store = create<GameState>((set, get) => ({
         },
       },
     });
+    initialState.changeTurn();
   },
   changeTurn: () => {
     const curr = get().turn;

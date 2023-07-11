@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import {
   Box,
@@ -52,14 +52,44 @@ const goWest = (cell: CoOrd) => {
 };
 
 const getWallPos = (cell: IWall) => {
-  const xCount = cell.col < 2 ? 1 : (cell.col + 1) / 2;
+  let xCellCount;
+  let xWallCount;
+  let zCellCount;
+  let zWallCount;
+  const normalise =
+    cellWidth / 2 + wallWidth / 2 + (cell.dir === "vert" ? -wallWidth : 0);
+  // const normalise = 0;
 
-  const zCount = cell.row < 2 ? 1 : (cell.row + 1) / 2;
+  // console.log(cell);
 
-  const normalise = cellWidth / 2 - wallWidth / 2;
+  if (cell.col % 2 === 1) {
+    //odd rows
+    xCellCount = cell.col < 2 ? 1 : (cell.col + 1) / 2;
+    xWallCount = xCellCount;
+  } else {
+    xCellCount = cell.col < 2 ? 1 : cell.col / 2 + 1;
+    xWallCount = xCellCount - 1;
+  }
 
-  const x = xCount * cellWidth + xCount * wallWidth + normalise;
-  const z = zCount * cellWidth + zCount * wallWidth + normalise;
+  if (cell.row % 2 === 1) {
+    //odd cols
+    zCellCount = cell.row < 2 ? 1 : (cell.row + 1) / 2;
+    zWallCount = zCellCount - 1;
+  } else {
+    zCellCount = cell.row < 2 ? 1 : cell.row / 2 + 1;
+    zWallCount = zCellCount;
+  }
+
+  // const normalise = cellWidth / 2 + wallWidth / 2;
+
+  console.log(xCellCount, xWallCount, zCellCount, zWallCount);
+
+  const x = xCellCount * cellWidth + xWallCount * wallWidth + normalise;
+
+  const z = zCellCount * cellWidth + zWallCount * wallWidth + normalise;
+
+  // const x = xCellCount * cellWidth + xWallCount * wallWidth;
+  // const z = zCellCount * cellWidth + zWallCount * wallWidth;
 
   return {
     x,
@@ -70,6 +100,8 @@ const getWallPos = (cell: IWall) => {
 const Wall = (props: IWall & { player: 1 | 2 }) => {
   const isHoz = props.dir === "hoz";
   const pos = getWallPos(props);
+
+  console.log(pos);
 
   return (
     <Box
@@ -119,7 +151,6 @@ const Player = (props: { player: 1 | 2 }) => {
 const getValidMoves = (cell: { row: number; col: number }) => {
   const board = useStore.getState().board;
 
-  // console.log(cell.col, max - 1, board);
   const northAvailable = cell.row < max - 1 && board[cell.row + 1][cell.col];
   const eastAvailable = cell.col < max - 1 && board[cell.row][cell.col + 1];
   const southAvailable = cell.row > 0 && board[cell.row - 1][cell.col];
@@ -258,7 +289,7 @@ const MoveTo = () => {
   );
 };
 
-const PlaceWall = () => {
+const PlaceWalls = () => {
   const players = useStore((state) => state.players);
   const playersKeys = [1, 2] as const;
 
@@ -281,6 +312,76 @@ const PlaceWall = () => {
   );
 };
 
+const PotentialWall = ({ cell }: { cell: IWall }) => {
+  const [hovered, setHovered] = useState(false);
+  const placeWall = useStore((state) => state.placeWall);
+  const currPlayer = useStore((state) => state.turn);
+  const pos = getWallPos(cell);
+  const isHoz = cell.dir === "hoz";
+
+  return (
+    <Box
+      position={[
+        pos.x + (isHoz ? -cellWidth / 2 - wallWidth / 2 : 0),
+        0,
+        -pos.z + (!isHoz ? cellWidth / 2 + wallWidth / 2 : 0),
+      ]}
+      args={[1, 0.1, 0.1]}
+      rotation={[0, !isHoz ? -Math.PI / 2 : 0, 0]}
+      onClick={(e) => {
+        e.stopPropagation();
+        placeWall(currPlayer, cell);
+      }}
+      onPointerEnter={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+      }}
+      onPointerLeave={(e) => {
+        e.stopPropagation();
+        setHovered(false);
+      }}
+    >
+      <meshStandardMaterial
+        color={hovered ? "green" : "gray"}
+        opacity={0.7}
+        transparent
+      />
+    </Box>
+  );
+};
+
+const SelectWallPlace = () => {
+  //find all empty walls, then place a box.
+  const board = useStore((state) => state.board);
+
+  const available = board.reduce((intialRow, currentRow, rowIndex) => {
+    const cells = currentRow.reduce((initialCol, currentCol, colIndex) => {
+      if (currentCol === true) {
+        return [
+          ...initialCol,
+          {
+            row: rowIndex,
+            col: colIndex,
+            dir: rowIndex % 2 === 1 ? ("hoz" as const) : ("vert" as const),
+          },
+        ];
+      }
+      return initialCol;
+    }, [] as IWall[]);
+    return [...intialRow, ...cells];
+  }, [] as IWall[]);
+
+  // console.log(available);
+
+  return (
+    <>
+      {available.map((cell) => {
+        return <PotentialWall cell={cell} />;
+      })}
+    </>
+  );
+};
+
 const Experience = () => {
   const placeWall = useStore((state) => state.placeWall);
   return (
@@ -293,7 +394,6 @@ const Experience = () => {
       {/* Stage */}
       <group position={[0, 1, 0]}>
         <MoveTo />
-        <PlaceWall />
 
         <Player player={1} />
         <Player player={2} />
@@ -305,18 +405,78 @@ const Experience = () => {
           // placeWall(1, { col: 3, row: 0, dir: "vert" });
           // placeWall(1, { col: 5, row: 0, dir: "vert" });
           // placeWall(1, { col: 7, row: 0, dir: "vert" });
-
-          placeWall(2, { col: 0, row: 1, dir: "hoz" });
-          placeWall(2, { col: 0, row: 3, dir: "hoz" });
-          placeWall(2, { col: 0, row: 5, dir: "hoz" });
-          placeWall(2, { col: 0, row: 7, dir: "hoz" });
+          // placeWall(1, { col: 9, row: 0, dir: "vert" });
+          // placeWall(1, { col: 11, row: 0, dir: "vert" });
+          // placeWall(1, { col: 13, row: 0, dir: "vert" });
+          // placeWall(1, { col: 15, row: 0, dir: "vert" });
+          // placeWall(1, { col: 1, row: 4, dir: "vert" });
+          // placeWall(1, { col: 3, row: 4, dir: "vert" });
+          // placeWall(1, { col: 5, row: 4, dir: "vert" });
+          // placeWall(1, { col: 7, row: 4, dir: "vert" });
+          // placeWall(1, { col: 9, row: 4, dir: "vert" });
+          // placeWall(1, { col: 11, row: 4, dir: "vert" });
+          // placeWall(1, { col: 13, row: 4, dir: "vert" });
+          // placeWall(1, { col: 15, row: 4, dir: "vert" });
+          // placeWall(1, { col: 1, row: 8, dir: "vert" });
+          // placeWall(1, { col: 3, row: 8, dir: "vert" });
+          // placeWall(1, { col: 5, row: 8, dir: "vert" });
+          // placeWall(1, { col: 7, row: 8, dir: "vert" });
+          // placeWall(1, { col: 9, row: 8, dir: "vert" });
+          // placeWall(1, { col: 11, row: 8, dir: "vert" });
+          // placeWall(1, { col: 13, row: 8, dir: "vert" });
+          // placeWall(1, { col: 15, row: 8, dir: "vert" });
+          // placeWall(1, { col: 1, row: 12, dir: "vert" });
+          // placeWall(1, { col: 3, row: 12, dir: "vert" });
+          // placeWall(1, { col: 5, row: 12, dir: "vert" });
+          // placeWall(1, { col: 7, row: 12, dir: "vert" });
+          // placeWall(1, { col: 9, row: 12, dir: "vert" });
+          // placeWall(1, { col: 11, row: 12, dir: "vert" });
+          // placeWall(1, { col: 13, row: 12, dir: "vert" });
+          // placeWall(1, { col: 15, row: 12, dir: "vert" });
+          // placeWall(2, { col: 0, row: 1, dir: "hoz" });
+          // placeWall(2, { col: 0, row: 3, dir: "hoz" });
+          // placeWall(2, { col: 0, row: 5, dir: "hoz" });
+          // placeWall(2, { col: 0, row: 7, dir: "hoz" });
+          // placeWall(2, { col: 0, row: 9, dir: "hoz" });
+          // placeWall(2, { col: 0, row: 11, dir: "hoz" });
+          // placeWall(2, { col: 0, row: 13, dir: "hoz" });
+          // placeWall(2, { col: 0, row: 15, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 1, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 3, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 5, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 7, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 9, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 11, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 13, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 15, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 1, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 3, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 5, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 7, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 9, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 11, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 13, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 15, dir: "hoz" });
+          // placeWall(2, { col: 14, row: 1, dir: "hoz" });
+          // placeWall(2, { col: 14, row: 3, dir: "hoz" });
+          // placeWall(2, { col: 14, row: 5, dir: "hoz" });
+          // placeWall(2, { col: 14, row: 7, dir: "hoz" });
+          // placeWall(2, { col: 14, row: 9, dir: "hoz" });
+          // placeWall(2, { col: 14, row: 11, dir: "hoz" });
+          // placeWall(2, { col: 14, row: 13, dir: "hoz" });
+          // placeWall(2, { col: 14, row: 15, dir: "hoz" });
+          // placeWall(2, { col: 3, row: 4, dir: "vert" });
+          // placeWall(2, { col: 2, row: 3, dir: "hoz" });
+          // placeWall(2, { col: 4, row: 1, dir: "hoz" });
+          // placeWall(2, { col: 8, row: 1, dir: "hoz" });
         }}
       >
         <meshBasicMaterial color={"green"} />
       </Box>
 
       <group position={[0, 0.5, 0]}>
-        <PlaceWall />
+        <SelectWallPlace />
+        <PlaceWalls />
       </group>
 
       {/* Floor */}
@@ -356,8 +516,13 @@ export const MyCanvas = () => (
   </Canvas>
 );
 
+const UI = () => {
+  return <div>test</div>;
+};
+
 const App = () => (
   <>
+    <UI />
     <MyCanvas />
   </>
 );
