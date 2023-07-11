@@ -335,10 +335,16 @@ const PotentialWall = ({
         placeWall(currPlayer, cell);
       }}
       onPointerEnter={(e) => {
+        if (!cell.valid) {
+          return;
+        }
         e.stopPropagation();
         setHoveredCell(cell);
       }}
       onPointerLeave={(e) => {
+        if (!cell.valid) {
+          return;
+        }
         e.stopPropagation();
         setHoveredCell(null);
       }}
