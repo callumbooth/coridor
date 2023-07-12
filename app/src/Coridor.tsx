@@ -30,6 +30,10 @@ const fsize = cells * cellWidth + (cells - 1) * wallWidth;
 const center = fsize / 2;
 const max = cells * 2 - 1;
 
+const degToRadians = (deg: number) => {
+  return (deg * Math.PI) / 180;
+};
+
 const goNorth = (cell: CoOrd) => {
   return {
     row: cell.row + 2,
@@ -535,7 +539,13 @@ const Experience = () => {
   return (
     <>
       {/* Helpers */}
-      <OrbitControls makeDefault target={[center, 0, -center]} />
+      <OrbitControls
+        makeDefault
+        target={[center, 0, -center]}
+        maxPolarAngle={degToRadians(80)}
+        minDistance={8}
+        maxDistance={12}
+      />
 
       {/* Lights */}
 
@@ -556,7 +566,7 @@ const Experience = () => {
       <group position={[0, -0.02, 0]}>
         <Torus
           position={[center + cellWidth / 2, -0.01, -center - cellWidth / 2]}
-          rotation={[-Math.PI / 2, 0, (45 * Math.PI) / 180]}
+          rotation={[-Math.PI / 2, 0, degToRadians(45)]}
           args={[6.98, 0.1, 3, 4]}
         >
           <meshBasicMaterial color={"black"} />
