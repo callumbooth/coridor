@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
+import App from "./Pizza.tsx";
 import Coridor from "./Coridor.tsx";
 import "./index.css";
 
