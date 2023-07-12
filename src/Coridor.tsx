@@ -11,7 +11,13 @@ import {
   Torus,
 } from "@react-three/drei";
 
-import { CoOrd, Wall as IWall, PossibleWall, useStore } from "./store";
+import {
+  CoOrd,
+  Wall as IWall,
+  PossibleWall,
+  createBoard,
+  useStore,
+} from "./store";
 import { start } from "./pathfind";
 import Cell from "./Cell";
 import { cells } from "./constants";
@@ -318,7 +324,11 @@ const PotentialWall = ({
 }) => {
   const placeWall = useStore((state) => state.placeWall);
   const currPlayer = useStore((state) => state.turn);
+  const player = useStore((state) => state.players[currPlayer]);
   const pos = getWallPos(cell);
+
+  const isWallMode = player.mode === "wall";
+
   const isHoz = cell.dir === "hoz";
 
   return (
@@ -328,7 +338,7 @@ const PotentialWall = ({
         -0.5,
         -pos.z + (!isHoz ? cellWidth / 2 + wallWidth / 2 : 0),
       ]}
-      args={[1, 0.1, 0.1]}
+      args={[1, isWallMode ? 0.1 : 0.01, 0.1]}
       rotation={[0, !isHoz ? -Math.PI / 2 : 0, 0]}
       onClick={(e) => {
         if (!cell.valid) {
@@ -353,8 +363,16 @@ const PotentialWall = ({
       }}
     >
       <meshStandardMaterial
-        color={isHovered ? "green" : cell.valid ? "gray" : "black"}
-        opacity={0.7}
+        color={
+          !isWallMode
+            ? "black"
+            : isHovered
+            ? "green"
+            : cell.valid
+            ? "gray"
+            : "black"
+        }
+        opacity={isWallMode ? 0.7 : 0.1}
         transparent
       />
     </Box>
@@ -400,17 +418,21 @@ const SelectWallPlace = () => {
   const board = useStore((state) => state.board);
   const turn = useStore((state) => state.turn);
   const player = useStore((state) => state.players[turn]);
+  const player1 = useStore((state) => state.players[1]);
+  const player2 = useStore((state) => state.players[2]);
 
   const available = useMemo(() => {
     return board.reduce((intialRow, currentRow, rowIndex) => {
-      const cells = currentRow.reduce((initialCol, currentCol, colIndex) => {
+      const rowCells = currentRow.reduce((initialCol, currentCol, colIndex) => {
         if (
           currentCol === false ||
-          currentCol === null ||
+          currentCol instanceof Cell ||
           (rowIndex % 2 === 1 && colIndex % 2 === 1)
         ) {
           return initialCol;
         }
+
+        const possibleBoard = createBoard(board);
 
         let isValid = true;
         if (colIndex > max - 2 || rowIndex > max - 2) {
@@ -423,6 +445,9 @@ const SelectWallPlace = () => {
             ) {
               isValid = false;
             }
+            possibleBoard[rowIndex][colIndex] = false;
+            possibleBoard[rowIndex][colIndex + 1] = false;
+            possibleBoard[rowIndex][colIndex + 2] = false;
           }
 
           if (rowIndex % 2 === 0 && colIndex % 2 === 1) {
@@ -432,6 +457,37 @@ const SelectWallPlace = () => {
             ) {
               isValid = false;
             }
+            possibleBoard[rowIndex][colIndex] = false;
+            possibleBoard[rowIndex + 1][colIndex] = false;
+            possibleBoard[rowIndex + 2][colIndex] = false;
+          }
+
+          for (let i = 0; i < cells; i++) {
+            for (let j = 0; j < cells; j++) {
+              (possibleBoard[i * 2][j * 2] as Cell).addNeighbors(possibleBoard);
+            }
+          }
+
+          const goalCells = [];
+
+          for (let i = 0; i < max - 1; i++) {
+            if (i % 2 === 0) {
+              goalCells.push(possibleBoard[max - 1][i] as Cell);
+            }
+          }
+
+          const p1PathClear = start(
+            possibleBoard[player1.row][player1.col] as Cell,
+            goalCells
+          );
+
+          const p2PathClear = start(
+            possibleBoard[player2.row][player2.col] as Cell,
+            goalCells
+          );
+
+          if (!p1PathClear || !p2PathClear) {
+            isValid = false;
           }
 
           return [
@@ -444,6 +500,7 @@ const SelectWallPlace = () => {
             },
           ];
         }
+
         return [
           ...initialCol,
           {
@@ -454,13 +511,9 @@ const SelectWallPlace = () => {
           },
         ];
       }, [] as PossibleWall[]);
-      return [...intialRow, ...cells];
+      return [...intialRow, ...rowCells];
     }, [] as PossibleWall[]);
   }, [board, player.wallsPlaced]);
-
-  if (player.mode !== "wall") {
-    return null;
-  }
 
   return (
     <>
@@ -562,8 +615,8 @@ const Experience = () => {
       </Box>
 
       <group position={[0, 0.5, 0]}>
-        <SelectWallPlace />
         <PlaceWalls />
+        <SelectWallPlace />
       </group>
 
       {/* Floor */}
@@ -614,6 +667,7 @@ export const MyCanvas = () => (
 const UI = () => {
   const turn = useStore((state) => state.turn);
   const player = useStore((state) => state.players[turn]);
+  const player1 = useStore((state) => state.players[1]);
   const selectMode = useStore((state) => state.selectMode);
   const board = useStore((state) => state.board);
 
@@ -647,7 +701,20 @@ const UI = () => {
         </div>
         <div className="flex-1 flex flex-col">
           <button
-            onClick={() => start(board[0][0] as Cell, board[4][4] as Cell)}
+            onClick={() => {
+              for (let i = 0; i < cells; i++) {
+                for (let j = 0; j < cells; j++) {
+                  (board[i * 2][j * 2] as Cell).addNeighbors(board);
+                }
+              }
+              start(board[player1.row][player1.col] as Cell, [
+                board[max - 1][0] as Cell,
+                board[max - 1][2] as Cell,
+                board[max - 1][4] as Cell,
+                board[max - 1][6] as Cell,
+                board[max - 1][8] as Cell,
+              ]);
+            }}
           >
             start search
           </button>

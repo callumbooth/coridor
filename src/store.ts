@@ -1,32 +1,36 @@
 import { create } from "zustand";
 import Cell from "./Cell";
-import { cells } from "./constants";
+import { cells, max } from "./constants";
 
-const defaultBoard = [
-  ...new Array(cells * 2 - 1).fill(false).map((_, i) =>
-    new Array(cells * 2 - 1).fill(false).map((_, j) => {
-      if (i % 2) {
-        if (j % 2 === 1) {
-          return true;
+export const createBoard = (board?: (boolean | Cell)[][]) => {
+  const defaultBoard: (boolean | Cell)[][] = [
+    ...new Array(max).fill(false).map((_, i) =>
+      new Array(max).fill(false).map((_, j) => {
+        if (i % 2) {
+          if (j % 2 === 1) {
+            return board ? board[i][j] : true;
+          } else {
+            return board ? board[i][j] : true;
+          }
         } else {
-          return true;
+          if (j % 2 === 0) {
+            return new Cell(i, j);
+          } else {
+            return board ? board[i][j] : true;
+          }
         }
-      } else {
-        if (j % 2 === 0) {
-          return new Cell(i, j);
-        } else {
-          return true;
-        }
-      }
-    })
-  ),
-];
+      })
+    ),
+  ];
 
-for (let i = 0; i < cells; i++) {
-  for (let j = 0; j < cells; j++) {
-    (defaultBoard[i * 2][j * 2] as Cell).addNeighbors(defaultBoard);
+  for (let i = 0; i < cells; i++) {
+    for (let j = 0; j < cells; j++) {
+      (defaultBoard[i * 2][j * 2] as Cell).addNeighbors(defaultBoard);
+    }
   }
-}
+
+  return defaultBoard;
+};
 
 // console.log(defaultBoard);
 
@@ -62,7 +66,7 @@ interface GameState {
 }
 
 const store = create<GameState>((set, get) => ({
-  board: defaultBoard,
+  board: createBoard(),
   turn: 1,
   players: {
     1: {

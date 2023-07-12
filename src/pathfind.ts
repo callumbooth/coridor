@@ -1,34 +1,44 @@
 import Cell from "./Cell";
-import { CoOrd } from "./store";
-import store from "./store";
+// import { CoOrd } from "./store";
+// import store from "./store";
 
-const board = store.getState().board;
+// const board = store.getState().board;
 
-console.log(board);
+// console.log(board);
 
-const closedCells: Cell[] = [];
-const openCells: Cell[] = [];
+export const start = (startCell: Cell, goalCells: Cell[]) => {
+  const getFinalPath = (finalCell: Cell) => {
+    return finalCell;
+  };
 
-const getLowestFCost = () => {
-  let lowestIndex = 0;
-  for (let i = 0; i < openCells.length; i++) {
-    if (openCells[i].fCost < openCells[lowestIndex].fCost) {
-      lowestIndex = i;
+  const closedCells: Cell[] = [];
+  const openCells: Cell[] = [];
+
+  const getLowestFCost = () => {
+    let lowestIndex = 0;
+    for (let i = 0; i < openCells.length; i++) {
+      if (openCells[i].fCost < openCells[lowestIndex].fCost) {
+        lowestIndex = i;
+      }
     }
-  }
-  return [openCells[lowestIndex], lowestIndex] as const;
-};
+    return [openCells[lowestIndex], lowestIndex] as const;
+  };
 
-const getFinalPath = (finalCell: Cell) => {
-  return finalCell;
-};
-
-export const start = (startCell: Cell, goalCell: Cell) => {
   const heuristic = (cell: Cell) => {
-    const d1 = Math.abs(goalCell.col - cell.col);
-    const d2 = Math.abs(goalCell.row - cell.row);
+    let closestGoal = Infinity;
+    let closestCell = goalCells[0];
 
-    return d1 + d2;
+    for (let i = 0; i < goalCells.length; i++) {
+      const d1 = Math.abs(goalCells[i].col - cell.col);
+      const d2 = Math.abs(goalCells[i].row - cell.row);
+      const dist = d1 + d2;
+
+      if (dist < closestGoal) {
+        closestGoal = dist;
+        closestCell = goalCells[i];
+      }
+    }
+    return closestCell.hCost;
   };
 
   //add start cell
@@ -37,9 +47,9 @@ export const start = (startCell: Cell, goalCell: Cell) => {
   while (openCells.length > 0) {
     const [currentCell, currentCellIndex] = getLowestFCost();
 
-    //end if currentCell = goal
-    if (currentCell === goalCell) {
-      console.log("path found", getFinalPath(currentCell));
+    //end if currentCell in goals
+    if (goalCells.includes(currentCell)) {
+    //   console.log("path found", getFinalPath(currentCell));
       return true;
     }
 
@@ -55,48 +65,21 @@ export const start = (startCell: Cell, goalCell: Cell) => {
         continue;
       }
 
-      const tempGScore =
-        currentCell.gCost === Infinity ? 1 : currentCell.gCost + 1;
+      const tempGScore = currentCell.gCost + 1;
 
-      console.log(tempGScore, neighbor.gCost);
-
-      if (tempGScore < neighbor.gCost) {
-        const hScore = heuristic(neighbor);
-        neighbor.gCost = tempGScore;
-        neighbor.fCost = tempGScore + hScore;
-        neighbor.hCost = hScore;
-        neighbor.previousCell = currentCell;
-
-        if (!openCells.includes(neighbor)) {
-          openCells.push(neighbor);
+      if (openCells.includes(neighbor)) {
+        if (tempGScore < neighbor.gCost) {
+          neighbor.gCost = tempGScore;
         }
+      } else {
+        neighbor.gCost = tempGScore;
+        openCells.push(neighbor);
       }
+
+      neighbor.hCost = heuristic(neighbor);
+      neighbor.fCost = neighbor.gCost + neighbor.hCost;
+      neighbor.previousCell = currentCell;
     }
-
-    // [
-
-    // ].forEach((neighbor) => {
-
-    //   for (let i = 0; i < closedCells.length; i++) {
-    //     if (
-    //       closedCells[i].row === neighbor.row &&
-    //       closedCells[i].col === neighbor.col
-    //     ) {
-    //       return;
-    //     }
-    //   }
-
-    //   let isInOpen = false;
-    //   for (let i = 0; i < closedCells.length; i++) {
-    //     if (
-    //       openCells[i].row === neighbor.row &&
-    //       openCells[i].col === neighbor.col
-    //     ) {
-    //       isInOpen = true;
-    //       break;
-    //     }
-    //   }
-    // });
   }
   console.log("no path found");
   return false;
