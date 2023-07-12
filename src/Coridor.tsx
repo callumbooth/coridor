@@ -468,22 +468,24 @@ const SelectWallPlace = () => {
             }
           }
 
-          const goalCells = [];
+          const p1GoalCells = [];
+          const p2GoalCells = [];
 
           for (let i = 0; i < max - 1; i++) {
             if (i % 2 === 0) {
-              goalCells.push(possibleBoard[max - 1][i] as Cell);
+              p1GoalCells.push(possibleBoard[max - 1][i] as Cell);
+              p2GoalCells.push(possibleBoard[0][i] as Cell);
             }
           }
 
           const p1PathClear = start(
             possibleBoard[player1.row][player1.col] as Cell,
-            goalCells
+            p1GoalCells
           );
 
           const p2PathClear = start(
             possibleBoard[player2.row][player2.col] as Cell,
-            goalCells
+            p2GoalCells
           );
 
           if (!p1PathClear || !p2PathClear) {
