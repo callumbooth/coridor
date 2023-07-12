@@ -9,7 +9,8 @@ Pizza topping POC, testing physics and collisions
 A remake of the game Quoridor. Practising object positioning, game state, path finding, websockets.
 
 TODO
-- [] Add websockets
-- [] Add game UI
+- [x] Add websockets
+- [x] Add game UI
+- [] Add re join
 - [] Add shortest path visualisation
 - [] Improve pathfinding efficiency
