@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import Cell from "./Cell";
 import { cells, max } from "./constants";
+import { v4 as uuid } from "uuid";
+import { socket } from "./socket";
 
 export const createBoard = (board?: (boolean | Cell)[][]) => {
   const defaultBoard: (boolean | Cell)[][] = [
@@ -54,20 +56,27 @@ interface PlayerState extends CoOrd {
 
 interface GameState {
   turn: 1 | 2;
+  room: string | undefined;
+  player: 1 | 2 | undefined;
   players: {
     1: PlayerState;
     2: PlayerState;
   };
   board: (boolean | Cell)[][];
+  setPlayer: (player: 1 | 2) => void;
   changeTurn: () => void;
-  placeWall: (player: 1 | 2, pos: Wall) => void;
-  movePlayer: (player: 1 | 2, pos: CoOrd) => void;
+  placeWall: (player: 1 | 2, pos: Wall, isReconsiliation?: boolean) => void;
+  movePlayer: (player: 1 | 2, pos: CoOrd, isReconsiliation?: boolean) => void;
   selectMode: (player: 1 | 2) => void;
+  createRoom: () => void;
+  joinRoom: (roomId: string) => void;
 }
 
 const store = create<GameState>((set, get) => ({
   board: createBoard(),
+  room: undefined,
   turn: 1,
+  player: undefined,
   players: {
     1: {
       row: 0,
@@ -82,7 +91,10 @@ const store = create<GameState>((set, get) => ({
       mode: "move",
     },
   },
-  placeWall: (player, wall) => {
+  setPlayer: (player) => {
+    set({ player });
+  },
+  placeWall: (player, wall, isReconsiliation) => {
     const initialState = get();
 
     initialState.board[wall.row][wall.col] = false;
@@ -105,6 +117,11 @@ const store = create<GameState>((set, get) => ({
         },
       },
     });
+    !isReconsiliation &&
+      socket.emit("playerMoved", initialState.room, {
+        type: "wall",
+        value: wall,
+      });
     initialState.changeTurn();
   },
   changeTurn: () => {
@@ -112,7 +129,7 @@ const store = create<GameState>((set, get) => ({
 
     set({ turn: curr === 1 ? 2 : 1 });
   },
-  movePlayer: (player, pos) => {
+  movePlayer: (player, pos, isReconsiliation) => {
     console.log("move", player, pos);
     const initialState = get();
     set({
@@ -124,10 +141,21 @@ const store = create<GameState>((set, get) => ({
         },
       },
     });
+    !isReconsiliation &&
+      socket.emit("playerMoved", initialState.room, {
+        type: "move",
+        value: pos,
+      });
     initialState.changeTurn();
   },
   selectMode: (player) => {
     const initialState = get();
+
+    const hasWallsLeft = initialState.players[player].wallsPlaced.length <= 10;
+
+    if (!hasWallsLeft) {
+      return;
+    }
 
     set({
       players: {
@@ -138,6 +166,19 @@ const store = create<GameState>((set, get) => ({
         },
       },
     });
+  },
+  createRoom: () => {
+    const id = uuid();
+
+    socket.emit("joinRoom", id);
+
+    console.log("here");
+
+    set({ room: id, player: 1 });
+  },
+  joinRoom: (roomId) => {
+    socket.emit("joinRoom", roomId);
+    set({ room: roomId, player: 2 });
   },
 }));
 

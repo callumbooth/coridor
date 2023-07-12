@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import {
   Box,
@@ -21,6 +21,7 @@ import {
 import { start } from "./pathfind";
 import Cell from "./Cell";
 import { cells } from "./constants";
+import { socket } from "./socket";
 
 const wallWidth = 0.1;
 const cellWidth = 1;
@@ -235,11 +236,14 @@ const getAdditionalMoves = (
 const MoveTo = () => {
   const movePlayer = useStore((state) => state.movePlayer);
 
-  const currTurn = useStore((state) => state.turn);
-  const currPlayer = useStore((state) => state.players[currTurn]);
-  const oppPlayer = useStore((store) => store.players[currTurn === 1 ? 2 : 1]);
+  const turn = useStore((state) => state.turn);
+  const player = useStore((state) => state.player);
+  const currPlayer = useStore((state) =>
+    player ? state.players[player] : undefined
+  );
+  const oppPlayer = useStore((store) => store.players[player === 1 ? 2 : 1]);
 
-  if (currPlayer.mode !== "move") {
+  if (!currPlayer || currPlayer.mode !== "move" || player !== turn) {
     return null;
   }
 
@@ -279,7 +283,7 @@ const MoveTo = () => {
             position={[pos.x, 0, -pos.z]}
             onClick={(e) => {
               e.stopPropagation();
-              movePlayer(currTurn, { row: validMove.row, col: validMove.col });
+              movePlayer(player, { row: validMove.row, col: validMove.col });
             }}
           >
             <meshStandardMaterial color={"gray"} opacity={0.7} transparent />
@@ -323,11 +327,14 @@ const PotentialWall = ({
   setHoveredCell: React.Dispatch<React.SetStateAction<PossibleWall | null>>;
 }) => {
   const placeWall = useStore((state) => state.placeWall);
-  const currPlayer = useStore((state) => state.turn);
-  const player = useStore((state) => state.players[currPlayer]);
+  const turn = useStore((state) => state.turn);
+  const player = useStore((state) => state.player);
+  const playerState = useStore((state) =>
+    player ? state.players[player] : undefined
+  );
   const pos = getWallPos(cell);
 
-  const isWallMode = player.mode === "wall";
+  const isWallMode = playerState?.mode === "wall" && player === turn;
 
   const isHoz = cell.dir === "hoz";
 
@@ -341,21 +348,21 @@ const PotentialWall = ({
       args={[1, isWallMode ? 0.1 : 0.01, 0.1]}
       rotation={[0, !isHoz ? -Math.PI / 2 : 0, 0]}
       onClick={(e) => {
-        if (!cell.valid) {
+        if (!cell.valid || !isWallMode || !player) {
           return;
         }
         e.stopPropagation();
-        placeWall(currPlayer, cell);
+        placeWall(player, cell);
       }}
       onPointerEnter={(e) => {
-        if (!cell.valid) {
+        if (!cell.valid || !isWallMode || !player) {
           return;
         }
         e.stopPropagation();
         setHoveredCell(cell);
       }}
       onPointerLeave={(e) => {
-        if (!cell.valid) {
+        if (!cell.valid || !isWallMode || !player) {
           return;
         }
         e.stopPropagation();
@@ -525,7 +532,6 @@ const SelectWallPlace = () => {
 };
 
 const Experience = () => {
-  const placeWall = useStore((state) => state.placeWall);
   return (
     <>
       {/* Helpers */}
@@ -540,81 +546,6 @@ const Experience = () => {
         <Player player={1} />
         <Player player={2} />
       </group>
-      <Box
-        position={[0, 0.5, 0]}
-        onClick={() => {
-          // placeWall(1, { col: 1, row: 0, dir: "vert" });
-          // placeWall(1, { col: 3, row: 0, dir: "vert" });
-          // placeWall(1, { col: 5, row: 0, dir: "vert" });
-          // placeWall(1, { col: 7, row: 0, dir: "vert" });
-          // placeWall(1, { col: 9, row: 0, dir: "vert" });
-          // placeWall(1, { col: 11, row: 0, dir: "vert" });
-          // placeWall(1, { col: 13, row: 0, dir: "vert" });
-          // placeWall(1, { col: 15, row: 0, dir: "vert" });
-          // placeWall(1, { col: 1, row: 4, dir: "vert" });
-          // placeWall(1, { col: 3, row: 4, dir: "vert" });
-          // placeWall(1, { col: 5, row: 4, dir: "vert" });
-          // placeWall(1, { col: 7, row: 4, dir: "vert" });
-          // placeWall(1, { col: 9, row: 4, dir: "vert" });
-          // placeWall(1, { col: 11, row: 4, dir: "vert" });
-          // placeWall(1, { col: 13, row: 4, dir: "vert" });
-          // placeWall(1, { col: 15, row: 4, dir: "vert" });
-          // placeWall(1, { col: 1, row: 8, dir: "vert" });
-          // placeWall(1, { col: 3, row: 8, dir: "vert" });
-          // placeWall(1, { col: 5, row: 8, dir: "vert" });
-          // placeWall(1, { col: 7, row: 8, dir: "vert" });
-          // placeWall(1, { col: 9, row: 8, dir: "vert" });
-          // placeWall(1, { col: 11, row: 8, dir: "vert" });
-          // placeWall(1, { col: 13, row: 8, dir: "vert" });
-          // placeWall(1, { col: 15, row: 8, dir: "vert" });
-          // placeWall(1, { col: 1, row: 12, dir: "vert" });
-          // placeWall(1, { col: 3, row: 12, dir: "vert" });
-          // placeWall(1, { col: 5, row: 12, dir: "vert" });
-          // placeWall(1, { col: 7, row: 12, dir: "vert" });
-          // placeWall(1, { col: 9, row: 12, dir: "vert" });
-          // placeWall(1, { col: 11, row: 12, dir: "vert" });
-          // placeWall(1, { col: 13, row: 12, dir: "vert" });
-          // placeWall(1, { col: 15, row: 12, dir: "vert" });
-          // placeWall(2, { col: 0, row: 1, dir: "hoz" });
-          // placeWall(2, { col: 0, row: 3, dir: "hoz" });
-          // placeWall(2, { col: 0, row: 5, dir: "hoz" });
-          // placeWall(2, { col: 0, row: 7, dir: "hoz" });
-          // placeWall(2, { col: 0, row: 9, dir: "hoz" });
-          // placeWall(2, { col: 0, row: 11, dir: "hoz" });
-          // placeWall(2, { col: 0, row: 13, dir: "hoz" });
-          // placeWall(2, { col: 0, row: 15, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 1, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 3, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 5, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 7, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 9, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 11, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 13, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 15, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 1, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 3, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 5, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 7, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 9, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 11, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 13, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 15, dir: "hoz" });
-          // placeWall(2, { col: 14, row: 1, dir: "hoz" });
-          // placeWall(2, { col: 14, row: 3, dir: "hoz" });
-          // placeWall(2, { col: 14, row: 5, dir: "hoz" });
-          // placeWall(2, { col: 14, row: 7, dir: "hoz" });
-          // placeWall(2, { col: 14, row: 9, dir: "hoz" });
-          // placeWall(2, { col: 14, row: 11, dir: "hoz" });
-          // placeWall(2, { col: 14, row: 13, dir: "hoz" });
-          // placeWall(2, { col: 14, row: 15, dir: "hoz" });
-          // placeWall(2, { col: 3, row: 4, dir: "vert" });
-          // placeWall(2, { col: 2, row: 3, dir: "hoz" });
-          // placeWall(2, { col: 4, row: 1, dir: "hoz" });
-          // placeWall(2, { col: 8, row: 1, dir: "hoz" });
-        }}
-      >
-        <meshBasicMaterial color={"green"} />
-      </Box>
 
       <group position={[0, 0.5, 0]}>
         <PlaceWalls />
@@ -667,62 +598,144 @@ export const MyCanvas = () => (
 );
 
 const UI = () => {
+  const room = useStore((state) => state.room);
   const turn = useStore((state) => state.turn);
-  const player = useStore((state) => state.players[turn]);
+  const player = useStore((state) => state.player);
+  const playerState = useStore((state) =>
+    player ? state.players[player] : undefined
+  );
   const player1 = useStore((state) => state.players[1]);
   const selectMode = useStore((state) => state.selectMode);
   const board = useStore((state) => state.board);
+  const createRoom = useStore((state) => state.createRoom);
+  const joinRoom = useStore((state) => state.joinRoom);
+  const movePlayer = useStore((state) => state.movePlayer);
+  const placeWall = useStore((state) => state.placeWall);
 
-  return (
-    <div className="absolute z-10 bottom-8 left-1/2 -translate-x-1/2 p-4 bg-white">
-      <div className="flex gap-4">
-        <div className="flex-1 flex flex-col">
-          <div>Turn</div>
-          <div>Player: {turn}</div>
-        </div>
-        <div className="flex-1 flex flex-col">
-          <div>Mode</div>
-          <div className="flex gap-4">
-            <button
-              className={player.mode === "move" ? "bg-red-900" : ""}
-              onClick={() => selectMode(turn)}
-            >
-              Move
-            </button>
-            <button
-              className={player.mode === "wall" ? "bg-red-900" : ""}
-              onClick={() => selectMode(turn)}
-            >
-              Wall
-            </button>
-          </div>
-        </div>
-        <div className="flex-1 flex flex-col">
-          <div>Walls left</div>
-          <div>{10 - player.wallsPlaced.length}</div>
-        </div>
-        <div className="flex-1 flex flex-col">
+  const [isConnected, setIsConnected] = useState(socket.connected);
+
+  useEffect(() => {
+    function onConnect() {
+      setIsConnected(true);
+    }
+
+    function onDisconnect() {
+      setIsConnected(false);
+    }
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+    };
+  }, []);
+
+  useEffect(() => {
+    function onOpponentMoved(event) {
+      const opponent = player === 1 ? 2 : 1;
+
+      console.log("opp", opponent, player);
+
+      console.log(event);
+      switch (event.type) {
+        case "wall": {
+          placeWall(opponent, event.value, true);
+          break;
+        }
+        case "move": {
+          movePlayer(opponent, event.value, true);
+          break;
+        }
+      }
+    }
+    socket.on("opponentMoved", onOpponentMoved);
+    return () => {
+      socket.off("opponentMoved", onOpponentMoved);
+    };
+  }, [player, movePlayer, placeWall]);
+
+  const joinRoomId = useRef<HTMLInputElement | null>(null);
+
+  if (!room) {
+    return (
+      <div className="absolute z-10 top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 p-4 bg-white ">
+        <h1>Coridor</h1>
+        <div className="flex gap-4">
+          <button onClick={() => createRoom()}>Create room</button>
+          <input ref={joinRoomId} type="text" />
           <button
-            onClick={() => {
-              for (let i = 0; i < cells; i++) {
-                for (let j = 0; j < cells; j++) {
-                  (board[i * 2][j * 2] as Cell).addNeighbors(board);
-                }
-              }
-              start(board[player1.row][player1.col] as Cell, [
-                board[max - 1][0] as Cell,
-                board[max - 1][2] as Cell,
-                board[max - 1][4] as Cell,
-                board[max - 1][6] as Cell,
-                board[max - 1][8] as Cell,
-              ]);
-            }}
+            onClick={() =>
+              joinRoomId.current && joinRoom(joinRoomId.current.value)
+            }
           >
-            start search
+            Join room
           </button>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="absolute z-20 bottom-8 left-8 p-4 bg-white">
+        <div className="flex flex-col">
+          <div>Connected: {isConnected ? "yes" : "no"}</div>
+          <div>Room: {room}</div>
+          <div>Player: {player}</div>
+        </div>
+      </div>
+      <div className="absolute z-10 bottom-8 left-1/2 -translate-x-1/2 p-4 bg-white">
+        <div className="flex gap-4">
+          <div className="flex-1 flex flex-col">
+            <div>Turn</div>
+            <div>Player: {turn}</div>
+          </div>
+          <div className="flex-1 flex flex-col">
+            <div>Mode</div>
+            <div className="flex gap-4">
+              <button
+                className={playerState?.mode === "move" ? "bg-red-900" : ""}
+                onClick={() => player && selectMode(player)}
+              >
+                Move
+              </button>
+              <button
+                className={playerState?.mode === "wall" ? "bg-red-900" : ""}
+                onClick={() => player && selectMode(player)}
+              >
+                Wall
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col">
+            <div>Walls left</div>
+            <div>{10 - (playerState?.wallsPlaced.length || 10)}</div>
+          </div>
+          <div className="flex-1 flex flex-col">
+            <button
+              onClick={() => {
+                for (let i = 0; i < cells; i++) {
+                  for (let j = 0; j < cells; j++) {
+                    (board[i * 2][j * 2] as Cell).addNeighbors(board);
+                  }
+                }
+                start(board[player1.row][player1.col] as Cell, [
+                  board[max - 1][0] as Cell,
+                  board[max - 1][2] as Cell,
+                  board[max - 1][4] as Cell,
+                  board[max - 1][6] as Cell,
+                  board[max - 1][8] as Cell,
+                ]);
+              }}
+            >
+              start search
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 
