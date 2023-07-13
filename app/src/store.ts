@@ -96,19 +96,20 @@ const store = create<GameState>((set, get) => ({
   },
   placeWall: (player, wall, isReconsiliation) => {
     const initialState = get();
+    const newBoard = createBoard(initialState.board);
 
-    initialState.board[wall.row][wall.col] = false;
+    newBoard[wall.row][wall.col] = false;
 
     if (wall.dir === "hoz") {
-      initialState.board[wall.row][wall.col + 1] = false;
-      initialState.board[wall.row][wall.col + 2] = false;
+      newBoard[wall.row][wall.col + 1] = false;
+      newBoard[wall.row][wall.col + 2] = false;
     } else {
-      initialState.board[wall.row + 1][wall.col] = false;
-      initialState.board[wall.row + 2][wall.col] = false;
+      newBoard[wall.row + 1][wall.col] = false;
+      newBoard[wall.row + 2][wall.col] = false;
     }
 
     set({
-      //   board: [...initialState.board],
+      board: newBoard,
       players: {
         ...initialState.players,
         [player]: {
@@ -151,12 +152,6 @@ const store = create<GameState>((set, get) => ({
   selectMode: (player) => {
     const initialState = get();
 
-    const hasWallsLeft = initialState.players[player].wallsPlaced.length <= 10;
-
-    if (!hasWallsLeft) {
-      return;
-    }
-
     set({
       players: {
         ...initialState.players,
@@ -172,8 +167,6 @@ const store = create<GameState>((set, get) => ({
 
     socket.emit("joinRoom", id);
 
-    console.log("here");
-
     set({ room: id, player: 1 });
   },
   joinRoom: (roomId) => {
@@ -181,8 +174,6 @@ const store = create<GameState>((set, get) => ({
     set({ room: roomId, player: 2 });
   },
 }));
-
-// store.subscribe((state) => console.log(state));
 
 export const useStore = store;
 

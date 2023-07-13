@@ -23,6 +23,16 @@ import Cell from "./Cell";
 import { cells } from "./constants";
 import { socket } from "./socket";
 
+interface MoveEvent {
+  type: "move";
+  value: CoOrd;
+}
+
+interface PlaceWallEvent {
+  type: "wall";
+  value: IWall;
+}
+
 const wallWidth = 0.1;
 const cellWidth = 1;
 
@@ -338,9 +348,13 @@ const PotentialWall = ({
   );
   const pos = getWallPos(cell);
 
-  const isWallMode = playerState?.mode === "wall" && player === turn;
+  const isWallMode = playerState?.mode === "wall";
+  const isMyTurn = player === turn;
+  const hasWallsLeft = !!playerState && playerState?.wallsPlaced.length < 1;
 
   const isHoz = cell.dir === "hoz";
+
+  const canPlaceWall = isWallMode && isMyTurn && hasWallsLeft && cell.valid;
 
   return (
     <Box
@@ -352,21 +366,21 @@ const PotentialWall = ({
       args={[1, isWallMode ? 0.1 : 0.01, 0.1]}
       rotation={[0, !isHoz ? -Math.PI / 2 : 0, 0]}
       onClick={(e) => {
-        if (!cell.valid || !isWallMode || !player) {
+        if (!canPlaceWall) {
           return;
         }
         e.stopPropagation();
         placeWall(player, cell);
       }}
       onPointerEnter={(e) => {
-        if (!cell.valid || !isWallMode || !player) {
+        if (!canPlaceWall) {
           return;
         }
         e.stopPropagation();
         setHoveredCell(cell);
       }}
       onPointerLeave={(e) => {
-        if (!cell.valid || !isWallMode || !player) {
+        if (!canPlaceWall) {
           return;
         }
         e.stopPropagation();
@@ -375,7 +389,7 @@ const PotentialWall = ({
     >
       <meshStandardMaterial
         color={
-          !isWallMode
+          !canPlaceWall
             ? "black"
             : isHovered
             ? "green"
@@ -383,7 +397,7 @@ const PotentialWall = ({
             ? "gray"
             : "black"
         }
-        opacity={isWallMode ? 0.7 : 0.1}
+        opacity={canPlaceWall ? 0.7 : 0.1}
         transparent
       />
     </Box>
@@ -427,8 +441,7 @@ const PotentialWalls = ({ available }: { available: PossibleWall[] }) => {
 const SelectWallPlace = () => {
   //find all empty walls, then place a box.
   const board = useStore((state) => state.board);
-  const turn = useStore((state) => state.turn);
-  const player = useStore((state) => state.players[turn]);
+
   const player1 = useStore((state) => state.players[1]);
   const player2 = useStore((state) => state.players[2]);
 
@@ -526,7 +539,7 @@ const SelectWallPlace = () => {
       }, [] as PossibleWall[]);
       return [...intialRow, ...rowCells];
     }, [] as PossibleWall[]);
-  }, [board, player.wallsPlaced]);
+  }, [board, player1, player2]);
 
   return (
     <>
@@ -643,12 +656,9 @@ const UI = () => {
   }, []);
 
   useEffect(() => {
-    function onOpponentMoved(event) {
+    function onOpponentMoved(event: MoveEvent | PlaceWallEvent) {
       const opponent = player === 1 ? 2 : 1;
 
-      console.log("opp", opponent, player);
-
-      console.log(event);
       switch (event.type) {
         case "wall": {
           placeWall(opponent, event.value, true);
