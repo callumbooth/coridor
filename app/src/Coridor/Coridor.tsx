@@ -11,17 +11,12 @@ import {
   Torus,
 } from "@react-three/drei";
 
-import {
-  CoOrd,
-  Wall as IWall,
-  PossibleWall,
-  createBoard,
-  useStore,
-} from "./store";
-import { start } from "./pathfind";
-import Cell from "./Cell";
+import { CoOrd, Wall as IWall, PossibleWall, useStore } from "./store";
+import { start } from "./utils/Pathfind/pathfind";
+import Cell from "./utils/Cell/Cell";
 import { cells } from "./constants";
 import { socket } from "./socket";
+import Board from "./utils/Board/Board";
 
 interface MoveEvent {
   type: "move";
@@ -350,11 +345,11 @@ const PotentialWall = ({
 
   const isWallMode = playerState?.mode === "wall";
   const isMyTurn = player === turn;
-  const hasWallsLeft = !!playerState && playerState?.wallsPlaced.length < 1;
+  const hasWallsLeft = !!playerState && playerState?.wallsPlaced.length < 10;
 
   const isHoz = cell.dir === "hoz";
 
-  const canPlaceWall = isWallMode && isMyTurn && hasWallsLeft && cell.valid;
+  const canPlaceWall = isWallMode && isMyTurn && hasWallsLeft;
 
   return (
     <Box
@@ -366,21 +361,21 @@ const PotentialWall = ({
       args={[1, isWallMode ? 0.1 : 0.01, 0.1]}
       rotation={[0, !isHoz ? -Math.PI / 2 : 0, 0]}
       onClick={(e) => {
-        if (!canPlaceWall) {
+        if (!canPlaceWall || !cell.valid) {
           return;
         }
         e.stopPropagation();
         placeWall(player, cell);
       }}
       onPointerEnter={(e) => {
-        if (!canPlaceWall) {
+        if (!canPlaceWall || !cell.valid) {
           return;
         }
         e.stopPropagation();
         setHoveredCell(cell);
       }}
       onPointerLeave={(e) => {
-        if (!canPlaceWall) {
+        if (!canPlaceWall || !cell.valid) {
           return;
         }
         e.stopPropagation();
@@ -456,7 +451,8 @@ const SelectWallPlace = () => {
           return initialCol;
         }
 
-        const possibleBoard = createBoard(board);
+        const newPossibleboard = new Board(cells, board);
+        const possibleBoard = newPossibleboard.grid;
 
         let isValid = true;
         if (colIndex > max - 2 || rowIndex > max - 2) {
@@ -488,7 +484,9 @@ const SelectWallPlace = () => {
 
           for (let i = 0; i < cells; i++) {
             for (let j = 0; j < cells; j++) {
-              (possibleBoard[i * 2][j * 2] as Cell).addNeighbors(possibleBoard);
+              (possibleBoard[i * 2][j * 2] as Cell).addNeighbors(
+                newPossibleboard
+              );
             }
           }
 
@@ -627,9 +625,8 @@ const UI = () => {
   const playerState = useStore((state) =>
     player ? state.players[player] : undefined
   );
-  const player1 = useStore((state) => state.players[1]);
+
   const selectMode = useStore((state) => state.selectMode);
-  const board = useStore((state) => state.board);
   const createRoom = useStore((state) => state.createRoom);
   const joinRoom = useStore((state) => state.joinRoom);
   const movePlayer = useStore((state) => state.movePlayer);
@@ -732,26 +729,6 @@ const UI = () => {
           <div className="flex-1 flex flex-col">
             <div>Walls left</div>
             <div>{10 - (playerState?.wallsPlaced.length || 10)}</div>
-          </div>
-          <div className="flex-1 flex flex-col">
-            <button
-              onClick={() => {
-                for (let i = 0; i < cells; i++) {
-                  for (let j = 0; j < cells; j++) {
-                    (board[i * 2][j * 2] as Cell).addNeighbors(board);
-                  }
-                }
-                start(board[player1.row][player1.col] as Cell, [
-                  board[max - 1][0] as Cell,
-                  board[max - 1][2] as Cell,
-                  board[max - 1][4] as Cell,
-                  board[max - 1][6] as Cell,
-                  board[max - 1][8] as Cell,
-                ]);
-              }}
-            >
-              start search
-            </button>
           </div>
         </div>
       </div>

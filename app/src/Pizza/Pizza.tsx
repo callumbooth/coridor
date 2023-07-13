@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { Suspense, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame, ThreeElements } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import {
   Box,
   Cylinder,

@@ -1,40 +1,9 @@
 import { create } from "zustand";
-import Cell from "./Cell";
-import { cells, max } from "./constants";
+import Cell from "./utils/Cell/Cell";
+import { cells } from "./constants";
 import { v4 as uuid } from "uuid";
 import { socket } from "./socket";
-
-export const createBoard = (board?: (boolean | Cell)[][]) => {
-  const defaultBoard: (boolean | Cell)[][] = [
-    ...new Array(max).fill(false).map((_, i) =>
-      new Array(max).fill(false).map((_, j) => {
-        if (i % 2) {
-          if (j % 2 === 1) {
-            return board ? board[i][j] : true;
-          } else {
-            return board ? board[i][j] : true;
-          }
-        } else {
-          if (j % 2 === 0) {
-            return new Cell(i, j);
-          } else {
-            return board ? board[i][j] : true;
-          }
-        }
-      })
-    ),
-  ];
-
-  for (let i = 0; i < cells; i++) {
-    for (let j = 0; j < cells; j++) {
-      (defaultBoard[i * 2][j * 2] as Cell).addNeighbors(defaultBoard);
-    }
-  }
-
-  return defaultBoard;
-};
-
-// console.log(defaultBoard);
+import Board from "./utils/Board/Board";
 
 export interface CoOrd {
   row: number;
@@ -73,7 +42,7 @@ interface GameState {
 }
 
 const store = create<GameState>((set, get) => ({
-  board: createBoard(),
+  board: new Board(cells).grid,
   room: undefined,
   turn: 1,
   player: undefined,
@@ -96,20 +65,20 @@ const store = create<GameState>((set, get) => ({
   },
   placeWall: (player, wall, isReconsiliation) => {
     const initialState = get();
-    const newBoard = createBoard(initialState.board);
+    const newBoard = new Board(cells, initialState.board);
 
-    newBoard[wall.row][wall.col] = false;
+    newBoard.grid[wall.row][wall.col] = false;
 
     if (wall.dir === "hoz") {
-      newBoard[wall.row][wall.col + 1] = false;
-      newBoard[wall.row][wall.col + 2] = false;
+      newBoard.grid[wall.row][wall.col + 1] = false;
+      newBoard.grid[wall.row][wall.col + 2] = false;
     } else {
-      newBoard[wall.row + 1][wall.col] = false;
-      newBoard[wall.row + 2][wall.col] = false;
+      newBoard.grid[wall.row + 1][wall.col] = false;
+      newBoard.grid[wall.row + 2][wall.col] = false;
     }
 
     set({
-      board: newBoard,
+      board: newBoard.grid,
       players: {
         ...initialState.players,
         [player]: {

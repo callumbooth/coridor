@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./Pizza.tsx";
-import Coridor from "./Coridor.tsx";
+import App from "./Pizza/Pizza.tsx";
+import Coridor from "./Coridor/Coridor.tsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

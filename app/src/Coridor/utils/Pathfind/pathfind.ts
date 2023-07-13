@@ -1,4 +1,4 @@
-import Cell from "./Cell";
+import Cell from "../Cell/Cell";
 // import { CoOrd } from "./store";
 // import store from "./store";
 
@@ -49,7 +49,7 @@ export const start = (startCell: Cell, goalCells: Cell[]) => {
 
     //end if currentCell in goals
     if (goalCells.includes(currentCell)) {
-    //   console.log("path found", getFinalPath(currentCell));
+      //   console.log("path found", getFinalPath(currentCell));
       return true;
     }
 
@@ -77,7 +77,6 @@ export const start = (startCell: Cell, goalCells: Cell[]) => {
       }
 
       neighbor.hCost = heuristic(neighbor);
-      neighbor.fCost = neighbor.gCost + neighbor.hCost;
       neighbor.previousCell = currentCell;
     }
   }

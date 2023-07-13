@@ -1,11 +1,11 @@
-import { max } from "./constants";
+import Board from "../Board/Board";
 
 class Cell {
   row: number;
   col: number;
   gCost = 0;
   hCost = 0;
-  fCost = 0;
+
   neighbors: Cell[] = [];
   previousCell: Cell | undefined;
 
@@ -14,13 +14,15 @@ class Cell {
     this.col = col;
   }
 
-  addNeighbors = (board: (Cell | boolean)[][]) => {
+  addNeighbors = (board: Board) => {
     this.neighbors = [];
 
-    const northAvailable = this.row < max - 1 && board[this.row + 1][this.col];
-    const eastAvailable = this.col < max - 1 && board[this.row][this.col + 1];
-    const southAvailable = this.row > 0 && board[this.row - 1][this.col];
-    const westAvailable = this.col > 0 && board[this.row][this.col - 1];
+    const northAvailable =
+      this.row < board.max - 1 && board.grid[this.row + 1][this.col];
+    const eastAvailable =
+      this.col < board.max - 1 && board.grid[this.row][this.col + 1];
+    const southAvailable = this.row > 0 && board.grid[this.row - 1][this.col];
+    const westAvailable = this.col > 0 && board.grid[this.row][this.col - 1];
 
     const possibleNeighbors = [
       ...(northAvailable ? [{ row: this.row + 2, col: this.col }] : []),
@@ -30,9 +32,13 @@ class Cell {
     ];
 
     possibleNeighbors.forEach((neighbor) => {
-      this.neighbors.push(board[neighbor.row][neighbor.col] as Cell);
+      this.neighbors.push(board.grid[neighbor.row][neighbor.col] as Cell);
     });
   };
+
+  get fCost() {
+    return this.gCost + this.hCost;
+  }
 }
 
 export default Cell;
